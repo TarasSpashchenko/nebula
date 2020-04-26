@@ -19,8 +19,6 @@ public interface MarcProcessor extends Handler<Buffer>, ReadStream<Buffer> {
 
   void processAsynchronously(WriteStream<Buffer> destination, Executor asyncExecutor, Handler<AsyncResult<Void>> handler);
 
-  void startAsyncProcessing(WriteStream<Buffer> destination, Consumer<Callable<Integer>> asyncMarcReaderExecutor, Handler<AsyncResult<Void>> handler);
-
   /**
    * This method is called to provide the parser with data.
    *
@@ -46,4 +44,9 @@ public interface MarcProcessor extends Handler<Buffer>, ReadStream<Buffer> {
   @Override
   MarcProcessor endHandler(Handler<Void> endHandler);
 
+  void terminateOnError(Throwable terminatedCause);
+
+  boolean isTerminatedOnError();
+
+  Throwable getTerminationOnErrorCause();
 }

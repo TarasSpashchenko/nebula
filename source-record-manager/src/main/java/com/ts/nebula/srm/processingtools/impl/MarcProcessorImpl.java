@@ -15,19 +15,16 @@ import org.marc4j.MarcStreamWriter;
 import org.marc4j.marc.Record;
 
 import java.io.ByteArrayOutputStream;
-import java.io.IOException;
 import java.nio.charset.StandardCharsets;
-import java.util.concurrent.Callable;
 import java.util.concurrent.Executor;
-import java.util.function.Consumer;
 
 public class MarcProcessorImpl implements MarcProcessor {
 
-  private long demand = Long.MAX_VALUE;
+  private volatile long demand = Long.MAX_VALUE;
   private final ReadStream<Buffer> stream;
 
-  private boolean processing;
-  private boolean streamEnded;
+  private volatile boolean processing;
+  private volatile boolean streamEnded;
 
   private Handler<Buffer> eventHandler;
   private Handler<Void> endHandler;
@@ -36,6 +33,12 @@ public class MarcProcessorImpl implements MarcProcessor {
 
   private final VertxBufferInputStream bufferInputStream;
   private final MarcReader marcReader;
+
+  private volatile boolean terminated;
+  private volatile boolean terminationOnErrorRequested;
+  private volatile boolean terminationOnErrorCompleted;
+
+  private volatile Throwable terminationOnErrorCause;
 
   private static final Logger log = LoggerFactory.getLogger(MarcProcessorImpl.class);
 
@@ -50,63 +53,12 @@ public class MarcProcessorImpl implements MarcProcessor {
     marcReader = new MarcPermissiveStreamReader(bufferInputStream, true, true, "BESTGUESS");
   }
 
-  private Buffer wrapIntoBuffer(Record rawRecord) {
-    ByteArrayOutputStream bos = new ByteArrayOutputStream();
-    MarcStreamWriter streamWriter = new MarcStreamWriter(bos, StandardCharsets.UTF_8.name());
-    streamWriter.write(rawRecord);
-    streamWriter.close();
-    return Buffer.buffer(bos.toByteArray());
-  }
-
-  private void doProcessAsynchronously(Executor asyncExecutor) {
-    asyncExecutor.execute(() -> {
-      if (marcReader.hasNext()) {
-        eventHandler.handle(wrapIntoBuffer(marcReader.next()));
-        log.debug("message sent...");
-
-        int remainingBuffersCapacity = bufferInputStream.remainingBuffersCapacity();
-        //TODO: get rid of magic numbers
-        if (remainingBuffersCapacity > 40 && demand > 0) {
-          ReadStream<Buffer> s = stream;
-          if (s != null) {
-            s.resume();
-          }
-        }
-        if (demand > 0) {
-          doProcessAsynchronously(asyncExecutor);
-        }
-      } else {
-        end();
-      }
-    });
-  }
-
   @Override
   public void processAsynchronously(WriteStream<Buffer> destination, Executor asyncExecutor, Handler<AsyncResult<Void>> handler) {
     pause();
     resumeHandler = (event) -> doProcessAsynchronously(asyncExecutor);
     this.pipeTo(destination, handler);
 //    doProcessAsynchronously(asyncExecutor);
-  }
-
-
-  @Override
-  public void startAsyncProcessing(WriteStream<Buffer> destination, Consumer<Callable<Integer>> asyncMarcReaderExecutor, Handler<AsyncResult<Void>> handler) {
-    throw new RuntimeException("Method is deprecated!");
-//    asyncMarcReaderExecutor.accept(() -> {
-//      this.pipeTo(destination, handler);
-//
-//      int count = 0;
-//      try {
-//        while (marcReader.hasNext()) {
-//          eventHandler.handle(wrapIntoBuffer(marcReader.next()));
-//          count++;
-//        }
-//      } finally {
-//        end();
-//      }
-//      return count;
-//    });
   }
 
   @Override
@@ -120,6 +72,7 @@ public class MarcProcessorImpl implements MarcProcessor {
       ReadStream<Buffer> s = stream;
       if (s != null) {
         s.pause();
+        log.debug("Source stream is paused in handle(Buffer buffer).");
       }
     }
   }
@@ -156,6 +109,7 @@ public class MarcProcessorImpl implements MarcProcessor {
 
   @Override
   public MarcProcessor pause() {
+    log.debug("MarcProcessor.pause()");
     demand = 0L;
     processStream();
     return this;
@@ -163,8 +117,13 @@ public class MarcProcessorImpl implements MarcProcessor {
 
   @Override
   public MarcProcessor fetch(long amount) {
-    Arguments.require(amount > 0, "Fetch amount must be > 0");
-    demand += amount;
+    if (terminated || terminationOnErrorRequested) {
+      log.warn("MarcProcessor.fetch(long amount) - MarcProcessor is already terminated...");
+      return this;
+    }
+
+    log.debug("MarcProcessor.fetch(long amount)");
+    demand = amount;
     if (demand < 0L) {
       demand = Long.MAX_VALUE;
     }
@@ -178,7 +137,16 @@ public class MarcProcessorImpl implements MarcProcessor {
 
   @Override
   public MarcProcessor resume() {
-    return fetch(Long.MAX_VALUE);
+    if (terminated || terminationOnErrorRequested) {
+      log.warn("MarcProcessor.resume() - MarcProcessor is already terminated...");
+      return this;
+    }
+
+    boolean pausedNow = demand <= 0;
+    if (log.isDebugEnabled() && pausedNow) {
+      log.debug("MarcProcessor.resume()");
+    }
+    return pausedNow ? fetch(Long.MAX_VALUE) : this;
   }
 
   @Override
@@ -187,11 +155,39 @@ public class MarcProcessorImpl implements MarcProcessor {
     return this;
   }
 
+  @Override
+  public synchronized void terminateOnError(Throwable terminatedCause) {
+    log.warn("MarcProcessor.terminateOnError(Throwable terminatedCause): " + terminatedCause);
+    terminatedCause.printStackTrace();
+    if (!terminationOnErrorRequested) {
+      this.terminationOnErrorCause = terminatedCause;
+      terminationOnErrorCompleted = false;
+      terminationOnErrorRequested = true;
+
+      //We don't need to process stream so Just push resumeHandler to doTerminate()!
+      Handler<Void> resumeHandler = this.resumeHandler;
+      if (resumeHandler != null) {
+        resumeHandler.handle(null);
+      }
+    }
+  }
+
+  @Override
+  public boolean isTerminatedOnError() {
+    return terminationOnErrorRequested;
+  }
+
+  @Override
+  public Throwable getTerminationOnErrorCause() {
+    return terminationOnErrorCause;
+  }
+
   private void endStream() {
     bufferInputStream.end();
   }
 
   private void end() {
+    log.debug("MarcProcessor.end() - starting...");
     try {
       Handler<Void> handler = endHandler;
       if (handler != null) {
@@ -199,6 +195,8 @@ public class MarcProcessorImpl implements MarcProcessor {
       }
     } finally {
       bufferInputStream.close();
+      terminated = true;
+      log.debug("MarcProcessor.end() - completed.");
     }
   }
 
@@ -213,6 +211,7 @@ public class MarcProcessorImpl implements MarcProcessor {
           ReadStream<Buffer> s = stream;
           if (s != null) {
             s.resume();
+            log.debug("Source stream is resumed.");
           }
         } else {
           endStream();
@@ -221,6 +220,7 @@ public class MarcProcessorImpl implements MarcProcessor {
         ReadStream<Buffer> s = stream;
         if (s != null) {
           s.pause();
+          log.debug("Source stream is paused in processStream().");
         }
       }
 
@@ -228,4 +228,56 @@ public class MarcProcessorImpl implements MarcProcessor {
       processing = false;
     }
   }
+
+  private synchronized void doTerminate() {
+    if (!terminationOnErrorCompleted) {
+      log.debug("MarcProcessor.doTerminate() - starting...");
+      pause();
+
+      Handler<Throwable> exHandler = this.exceptionHandler;
+      if (exHandler != null) {
+        exHandler.handle(terminationOnErrorCause);
+      }
+
+      end();
+      terminationOnErrorCompleted = true;
+      log.debug("MarcProcessor.doTerminate() - completed.");
+    }
+  }
+
+  private Buffer wrapIntoBuffer(Record rawRecord) {
+    ByteArrayOutputStream bos = new ByteArrayOutputStream();
+    MarcStreamWriter streamWriter = new MarcStreamWriter(bos, StandardCharsets.UTF_8.name());
+    streamWriter.write(rawRecord);
+    streamWriter.close();
+    return Buffer.buffer(bos.toByteArray());
+  }
+
+  private void doProcessAsynchronously(Executor asyncExecutor) {
+    asyncExecutor.execute(() -> {
+      if (terminated) {
+        log.warn("MarcProcessor is already terminated...");
+      } else if (terminationOnErrorRequested) {
+        doTerminate();
+      } else if (marcReader.hasNext()) {
+        eventHandler.handle(wrapIntoBuffer(marcReader.next()));
+
+        int remainingBuffersCapacity = bufferInputStream.remainingBuffersCapacity();
+        //TODO: get rid of magic numbers
+        if (remainingBuffersCapacity > 40 && demand > 0) {
+          ReadStream<Buffer> s = stream;
+          if (s != null) {
+            s.resume();
+          }
+        }
+
+        if (demand > 0) {
+          doProcessAsynchronously(asyncExecutor);
+        }
+      } else {
+        end();
+      }
+    });
+  }
+
 }
