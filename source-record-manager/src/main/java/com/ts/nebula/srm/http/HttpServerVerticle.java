@@ -1,6 +1,7 @@
 package com.ts.nebula.srm.http;
 
-import com.ts.nebula.srm.processingtools.MarcProcessor;
+import com.ts.nebula.srm.processingtools.MarcStreamParser;
+import com.ts.nebula.srm.processingtools.impl.RawToJsonMarcConverterSimpleImpl;
 import com.ts.nebula.srm.processingtools.impl.ResponsibleMessageProducerImpl;
 import io.vertx.core.AbstractVerticle;
 import io.vertx.core.Promise;
@@ -11,17 +12,15 @@ import io.vertx.core.eventbus.MessageProducer;
 import io.vertx.core.http.HttpClient;
 import io.vertx.core.http.HttpClientOptions;
 import io.vertx.core.http.HttpClientRequest;
-import io.vertx.core.http.HttpConnection;
 import io.vertx.core.http.HttpServer;
 import io.vertx.core.http.HttpServerOptions;
 import io.vertx.core.http.HttpServerRequest;
-import io.vertx.core.http.HttpVersion;
 import io.vertx.core.http.RequestOptions;
+import io.vertx.core.json.JsonObject;
 import io.vertx.core.logging.Logger;
 import io.vertx.core.logging.LoggerFactory;
 import io.vertx.ext.web.Router;
 import io.vertx.ext.web.RoutingContext;
-import io.vertx.ext.web.client.WebClient;
 
 import java.util.UUID;
 
@@ -58,10 +57,24 @@ public class HttpServerVerticle extends AbstractVerticle {
     executionContext.request = request;
     request.pause();
 
-    MarcProcessor marcProcessor = MarcProcessor.newMarcParser(request);
-    marcProcessor.pause();
+    MarcStreamParser marcStreamParser = MarcStreamParser.newMarcParser(request, command -> vertx.executeBlocking(promise -> {
+      try {
+        command.run();
+        promise.complete();
+      } catch (Exception e) {
+        e.printStackTrace();
+        LOGGER.error("Could not process stream " + e);
+        promise.fail(e);
+      }
+    }, true, ar -> {
+      if (!ar.succeeded()) {
+        System.out.println("vertx.executeBlocking - error. e: " + ar.cause());
+      }
+    }));
 
-    executionContext.marcProcessor = marcProcessor;
+    marcStreamParser.pause();
+
+    executionContext.marcStreamParser = marcStreamParser;
   }
 
   private void createRawMarcMessageProducer(MarcProcessingExecutionContext executionContext, String addressSuffix) {
@@ -69,6 +82,7 @@ public class HttpServerVerticle extends AbstractVerticle {
     MessageProducer<Buffer> rawMarcRecordsSender = new ResponsibleMessageProducerImpl<>(vertx, address, true, new DeliveryOptions());
 
     rawMarcRecordsSender.setWriteQueueMaxSize(2);
+
     executionContext.rawMarcRecordsSender = rawMarcRecordsSender;
   }
 
@@ -103,12 +117,12 @@ public class HttpServerVerticle extends AbstractVerticle {
           ));
 
     executionContext.srsHttpClientRequest.drainHandler(event -> {
-      executionContext.marcProcessor.resume();
+      executionContext.marcStreamParser.resume();
     });
 
     executionContext.srsHttpClientRequest.exceptionHandler(e -> {
       e.printStackTrace();
-      executionContext.marcProcessor.terminateOnError(e);
+      executionContext.marcStreamParser.terminateOnError(e);
     });
 
   }
@@ -116,14 +130,24 @@ public class HttpServerVerticle extends AbstractVerticle {
   private void createRawMarcMessageConsumer(MarcProcessingExecutionContext executionContext, String addressSuffix) {
     createSrsHttpClient(executionContext);
     MessageConsumer<Buffer> rawMarcMessageConsumer = vertx.eventBus().consumer("RawMarc_" + addressSuffix, message -> {
-      executionContext.srsHttpClientRequest.write(message.body());
+
+      JsonObject marcRecord = RawToJsonMarcConverterSimpleImpl.getInstance().convert(message.body());
+
+      Buffer marcRecordForSRS = marcRecord.toBuffer();
+
+      executionContext.srsHttpClientRequest.write(marcRecordForSRS);
+
+
       if (executionContext.srsHttpClientRequest.writeQueueFull()) {
-        executionContext.marcProcessor.pause();
+        executionContext.marcStreamParser.pause();
       }
+
     });
+
+
     rawMarcMessageConsumer.exceptionHandler(e -> {
       e.printStackTrace();
-      executionContext.marcProcessor.terminateOnError(e);
+      executionContext.marcStreamParser.terminateOnError(e);
     });
     rawMarcMessageConsumer.setMaxBufferedMessages(1);
 
@@ -131,21 +155,8 @@ public class HttpServerVerticle extends AbstractVerticle {
   }
 
   private void startRequestProcessing(MarcProcessingExecutionContext executionContext) {
-    executionContext.marcProcessor.processAsynchronously(executionContext.rawMarcRecordsSender,
-      command -> vertx.executeBlocking(promise -> {
-        try {
-          command.run();
-          promise.complete();
-        } catch (Exception e) {
-          e.printStackTrace();
-          LOGGER.error("Could not process stream " + e);
-          promise.fail(e);
-        }
-      }, true, ar -> {
-        if (!ar.succeeded()) {
-          System.out.println("vertx.executeBlocking - error. e: " + ar.cause());
-        }
-      }), ar -> {
+    executionContext.marcStreamParser.processAsynchronously(executionContext.rawMarcRecordsSender,
+      ar -> {
         if (ar.succeeded()) {
           System.out.println("marcParser.processAsynchronously - succeeded completion");
         } else {
@@ -170,7 +181,7 @@ public class HttpServerVerticle extends AbstractVerticle {
             });
           } else {
             //TODO: it is a wrong place it should not be done here
-            executionContext.request.response().setStatusCode(500).end(executionContext.marcProcessor.getTerminationOnErrorCause().toString());
+            executionContext.request.response().setStatusCode(500).end(executionContext.marcStreamParser.getTerminationOnErrorCause().toString());
           }
         });
       });
@@ -191,7 +202,7 @@ public class HttpServerVerticle extends AbstractVerticle {
 
   private static class MarcProcessingExecutionContext {
     private HttpServerRequest request;
-    private MarcProcessor marcProcessor;
+    private MarcStreamParser marcStreamParser;
     private MessageProducer<Buffer> rawMarcRecordsSender;
 
     private HttpClientRequest srsHttpClientRequest;

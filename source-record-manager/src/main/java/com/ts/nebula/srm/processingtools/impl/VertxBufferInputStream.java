@@ -31,6 +31,8 @@ public class VertxBufferInputStream extends InputStream {
 
   private final AtomicInteger queueMaxSize = new AtomicInteger();
 
+  private volatile boolean streamAlreadyEnded = false;
+
   private volatile Buffer buffer = Buffer.buffer(Unpooled.EMPTY_BUFFER);
 
   protected int count;
@@ -157,8 +159,11 @@ public class VertxBufferInputStream extends InputStream {
     }
   }
 
-  public void end() {
-    putNextBuffer(END_BUFFER);
+  public synchronized void end() {
+    if (!streamAlreadyEnded) {
+      putNextBuffer(END_BUFFER);
+      streamAlreadyEnded = true;
+    }
   }
 
   public void error() {
