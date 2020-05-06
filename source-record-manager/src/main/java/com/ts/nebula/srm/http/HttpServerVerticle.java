@@ -4,6 +4,8 @@ import com.ts.nebula.srm.processingtools.MarcStreamParser;
 import com.ts.nebula.srm.processingtools.impl.RawToJsonMarcConverterSimpleImpl;
 import com.ts.nebula.srm.processingtools.impl.ResponsibleMessageProducerImpl;
 import io.vertx.core.AbstractVerticle;
+import io.vertx.core.AsyncResult;
+import io.vertx.core.Handler;
 import io.vertx.core.Promise;
 import io.vertx.core.buffer.Buffer;
 import io.vertx.core.eventbus.DeliveryOptions;
@@ -23,6 +25,7 @@ import io.vertx.ext.web.Router;
 import io.vertx.ext.web.RoutingContext;
 
 import java.util.UUID;
+import java.util.concurrent.Executor;
 
 public class HttpServerVerticle extends AbstractVerticle {
 
@@ -53,25 +56,28 @@ public class HttpServerVerticle extends AbstractVerticle {
       });
   }
 
-  private void createMarcProcessor(MarcProcessingExecutionContext executionContext, HttpServerRequest request) {
-    executionContext.request = request;
-    request.pause();
-
-    MarcStreamParser marcStreamParser = MarcStreamParser.newMarcParser(request, command -> vertx.executeBlocking(promise -> {
+  private Executor createAsyncExecutor() {
+    return command -> vertx.executeBlocking(promise -> {
       try {
         command.run();
         promise.complete();
       } catch (Exception e) {
         e.printStackTrace();
-        LOGGER.error("Could not process stream " + e);
+        LOGGER.error("Could not process command " + e);
         promise.fail(e);
       }
     }, true, ar -> {
       if (!ar.succeeded()) {
         System.out.println("vertx.executeBlocking - error. e: " + ar.cause());
       }
-    }));
+    });
+  }
 
+  private void createMarcProcessor(MarcProcessingExecutionContext executionContext, HttpServerRequest request) {
+    executionContext.request = request;
+    request.pause();
+
+    MarcStreamParser marcStreamParser = MarcStreamParser.newMarcParser(request, createAsyncExecutor());
     marcStreamParser.pause();
 
     executionContext.marcStreamParser = marcStreamParser;
@@ -93,9 +99,7 @@ public class HttpServerVerticle extends AbstractVerticle {
         .setDefaultHost("localhost")
         .setDefaultPort(8090))
       .connectionHandler(connection -> {
-        connection.closeHandler(closeEvent -> {
-          executionContext.connectionAlreadyClosed = true;
-        });
+        connection.closeHandler(closeEvent -> executionContext.connectionAlreadyClosed = true);
         executionContext.wasConnected = true;
       });
 
@@ -116,15 +120,20 @@ public class HttpServerVerticle extends AbstractVerticle {
             }
           ));
 
-    executionContext.srsHttpClientRequest.drainHandler(event -> {
-      executionContext.marcStreamParser.resume();
-    });
+    executionContext.srsHttpClientRequest.drainHandler(event -> executionContext.marcStreamParser.resume());
 
     executionContext.srsHttpClientRequest.exceptionHandler(e -> {
       e.printStackTrace();
-      executionContext.marcStreamParser.terminateOnError(e);
+      if (!executionContext.marcStreamParser.isTerminated()) {
+        executionContext.marcStreamParser.terminateOnError(e);
+      } else {
+        executionContext.request.response().setStatusCode(500).end(e.getMessage());
+      }
     });
 
+    // write stream header
+    executionContext.srsHttpClientRequest.write(
+      "{\"streamHeader\": true, \"JobExecutionId\":\"" + executionContext.id + "\", \"someOtherStuff\":\"blah... blah... blah... \"}");
   }
 
   private void createRawMarcMessageConsumer(MarcProcessingExecutionContext executionContext, String addressSuffix) {
@@ -137,70 +146,57 @@ public class HttpServerVerticle extends AbstractVerticle {
 
       executionContext.srsHttpClientRequest.write(marcRecordForSRS);
 
-
       if (executionContext.srsHttpClientRequest.writeQueueFull()) {
         executionContext.marcStreamParser.pause();
       }
-
     });
-
 
     rawMarcMessageConsumer.exceptionHandler(e -> {
       e.printStackTrace();
       executionContext.marcStreamParser.terminateOnError(e);
     });
-    rawMarcMessageConsumer.setMaxBufferedMessages(1);
 
+    rawMarcMessageConsumer.setMaxBufferedMessages(1);
     executionContext.rawMarcMessageConsumer = rawMarcMessageConsumer;
   }
 
-  private void startRequestProcessing(MarcProcessingExecutionContext executionContext) {
-    executionContext.marcStreamParser.processAsynchronously(executionContext.rawMarcRecordsSender,
-      ar -> {
-        if (ar.succeeded()) {
-          System.out.println("marcParser.processAsynchronously - succeeded completion");
-        } else {
-          System.out.println("marcParser.processAsynchronously - error. e: " + ar.cause());
+  private Handler<AsyncResult<Void>> completionHandler(MarcProcessingExecutionContext executionContext) {
+    return ar -> executionContext.rawMarcMessageConsumer.unregister(uar -> {
+      if (executionContext.wasConnected && !executionContext.connectionAlreadyClosed) {
+        // write stream trailer
+        executionContext.srsHttpClientRequest.end(
+          ar.succeeded() ?
+            "{\"streamTrailer\": true, \"succeeded\": true, \"failed\": false, \"JobExecutionId\":\"" + executionContext.id + "\", \"someOtherStuff\":\"blah... blah... blah... \"}" :
+            "{\"streamTrailer\": true, \"succeeded\": false, \"failed\": true, \"JobExecutionId\":\"" + executionContext.id + "\", \"someOtherStuff\":\"blah... blah... blah... \"}");
+      } else {
+        if (executionContext.marcStreamParser.isTerminatedOnError()) {
+          executionContext.request.response()
+            .setStatusCode(500)
+            .end(String.valueOf(executionContext.marcStreamParser.getTerminationOnErrorCause()));
         }
+      }
+    });
+  }
 
-        executionContext.rawMarcRecordsSender.end();
-        executionContext.rawMarcMessageConsumer.unregister(uar -> {
-          if (uar.succeeded()) {
-            System.out.println("executionContext.rawMarcMessageConsumer succeeded.");
-          } else {
-            System.out.println("executionContext.rawMarcMessageConsumer failed. " + uar.cause());
-          }
-
-          if (executionContext.wasConnected && !executionContext.connectionAlreadyClosed) {
-            executionContext.srsHttpClientRequest.end(arRequest -> {
-              if (arRequest.succeeded()) {
-                System.out.println("executionContext.srsHttpClientRequest succeeded.");
-              } else {
-                System.out.println("executionContext.srsHttpClientRequest failed. " + arRequest.cause());
-              }
-            });
-          } else {
-            //TODO: it is a wrong place it should not be done here
-            executionContext.request.response().setStatusCode(500).end(executionContext.marcStreamParser.getTerminationOnErrorCause().toString());
-          }
-        });
-      });
+  private void startRequestProcessing(MarcProcessingExecutionContext executionContext) {
+    executionContext.marcStreamParser.processAsynchronously(executionContext.rawMarcRecordsSender, completionHandler(executionContext));
   }
 
   private void importRawMARCSHandler7v2(RoutingContext context) {
-    String suffix = UUID.randomUUID().toString().replaceAll("-", "");
+    String id = UUID.randomUUID().toString().replaceAll("-", "");
 
-    MarcProcessingExecutionContext executionContext = new MarcProcessingExecutionContext();
+    MarcProcessingExecutionContext executionContext = new MarcProcessingExecutionContext(id);
     HttpServerRequest request = context.request();
 
     createMarcProcessor(executionContext, request);
-    createRawMarcMessageProducer(executionContext, suffix);
-    createRawMarcMessageConsumer(executionContext, suffix);
+    createRawMarcMessageProducer(executionContext, id);
+    createRawMarcMessageConsumer(executionContext, id);
     startRequestProcessing(executionContext);
   }
 
 
   private static class MarcProcessingExecutionContext {
+    private String id;
     private HttpServerRequest request;
     private MarcStreamParser marcStreamParser;
     private MessageProducer<Buffer> rawMarcRecordsSender;
@@ -210,6 +206,10 @@ public class HttpServerVerticle extends AbstractVerticle {
 
     private boolean connectionAlreadyClosed;
     private boolean wasConnected;
+
+    private MarcProcessingExecutionContext(String id) {
+      this.id = id;
+    }
 
   }
 

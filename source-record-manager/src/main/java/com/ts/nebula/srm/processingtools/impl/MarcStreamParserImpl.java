@@ -188,22 +188,28 @@ public class MarcStreamParserImpl implements MarcStreamParser {
     return terminationOnErrorCause;
   }
 
+  public synchronized boolean isTerminated() {
+    return terminated;
+  }
+
   private void endStream() {
     bufferInputStream.end();
     log.debug("MarcStreamParser.endStream() - completed.");
   }
 
-  private void end() {
-    log.debug("MarcStreamParser.end() - starting...");
-    try {
-      Handler<Void> handler = endHandler;
-      if (handler != null) {
-        handler.handle(null);
-      }
-    } finally {
-      bufferInputStream.close();
+  private synchronized void end() {
+    if (!terminated) {
       terminated = true;
-      log.debug("MarcStreamParser.end() - completed.");
+      log.debug("MarcStreamParser.end() - starting...");
+      try {
+        Handler<Void> handler = endHandler;
+        if (handler != null) {
+          handler.handle(null);
+        }
+      } finally {
+        bufferInputStream.close();
+        log.debug("MarcStreamParser.end() - completed.");
+      }
     }
   }
 
@@ -251,19 +257,22 @@ public class MarcStreamParserImpl implements MarcStreamParser {
       } else if (terminationOnErrorRequested) {
         doTerminate();
       } else if (marcReader.hasNext()) {
-        eventHandler.handle(wrapIntoBuffer(marcReader.next()));
+        Handler<Buffer> localEventHandler = eventHandler;
+        if (localEventHandler != null) {
+          localEventHandler.handle(wrapIntoBuffer(marcReader.next()));
 
-        int remainingBuffersCapacity = bufferInputStream.remainingBuffersCapacity();
-        //TODO: get rid of magic numbers
-        if (remainingBuffersCapacity > 40 && (demand || initialDemand)) {
-          ReadStream<Buffer> s = stream;
-          if (s != null) {
-            s.resume();
+          int remainingBuffersCapacity = bufferInputStream.remainingBuffersCapacity();
+          //TODO: get rid of magic numbers
+          if (remainingBuffersCapacity > 40 && (demand || initialDemand)) {
+            ReadStream<Buffer> s = stream;
+            if (s != null) {
+              s.resume();
+            }
           }
-        }
 
-        if (demand || initialDemand) {
-          doProcessAsynchronously();
+          if (demand || initialDemand) {
+            doProcessAsynchronously();
+          }
         }
       } else {
         end();
