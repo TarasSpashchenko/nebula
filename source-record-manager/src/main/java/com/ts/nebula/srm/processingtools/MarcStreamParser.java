@@ -22,6 +22,7 @@ public interface MarcStreamParser extends Handler<Buffer>, ReadStream<Buffer> {
    *
    * @param buffer a chunk of data
    */
+  @Override
   void handle(Buffer buffer);
 
   @Override
@@ -47,4 +48,6 @@ public interface MarcStreamParser extends Handler<Buffer>, ReadStream<Buffer> {
   boolean isTerminatedOnError();
 
   Throwable getTerminationOnErrorCause();
+
+  boolean isTerminated();
 }
