@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<project xmlns="http://maven.apache.org/POM/4.0.0"
-     xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-     xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+<project xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xmlns="http://maven.apache.org/POM/4.0.0"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
   <modelVersion>4.0.0</modelVersion>
 
   <groupId>com.ts.nebula</groupId>
@@ -40,6 +40,16 @@
   </dependencyManagement>
 
   <dependencies>
+    <dependency>
+      <groupId>org.apache.commons</groupId>
+      <artifactId>commons-lang3</artifactId>
+      <version>3.10</version>
+    </dependency>
+    <dependency>
+      <groupId>commons-io</groupId>
+      <artifactId>commons-io</artifactId>
+      <version>2.6</version>
+    </dependency>
     <dependency>
       <groupId>io.vertx</groupId>
       <artifactId>vertx-codegen</artifactId>
@@ -90,19 +100,19 @@
           <!-- Important: there are issues with apt and incremental compilation in the maven-compiler-plugin -->
           <useIncrementalCompilation>false</useIncrementalCompilation>
         </configuration>
-<!--        <executions>-->
-<!--          <execution>-->
-<!--            <id>default-compile</id>-->
-<!--            <configuration>-->
-<!--              <annotationProcessors>-->
-<!--                <annotationProcessor>io.vertx.codegen.CodeGenProcessor</annotationProcessor>-->
-<!--              </annotationProcessors>-->
-<!--              <compilerArgs>-->
-<!--                <arg>-Acodegen.output=${project.basedir}/src/main</arg>-->
-<!--              </compilerArgs>-->
-<!--            </configuration>-->
-<!--          </execution>-->
-<!--        </executions>-->
+        <!--        <executions>-->
+        <!--          <execution>-->
+        <!--            <id>default-compile</id>-->
+        <!--            <configuration>-->
+        <!--              <annotationProcessors>-->
+        <!--                <annotationProcessor>io.vertx.codegen.CodeGenProcessor</annotationProcessor>-->
+        <!--              </annotationProcessors>-->
+        <!--              <compilerArgs>-->
+        <!--                <arg>-Acodegen.output=${project.basedir}/src/main</arg>-->
+        <!--              </compilerArgs>-->
+        <!--            </configuration>-->
+        <!--          </execution>-->
+        <!--        </executions>-->
       </plugin>
       <plugin>
         <artifactId>maven-shade-plugin</artifactId>

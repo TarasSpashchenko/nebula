@@ -3,6 +3,7 @@ package com.ts.nebula.srm.processingtools.impl;
 import com.ts.nebula.srm.processingtools.MarcStreamParser;
 import io.vertx.core.AsyncResult;
 import io.vertx.core.Handler;
+import io.vertx.core.Vertx;
 import io.vertx.core.buffer.Buffer;
 import io.vertx.core.logging.Logger;
 import io.vertx.core.logging.LoggerFactory;
@@ -10,52 +11,48 @@ import io.vertx.core.streams.ReadStream;
 import io.vertx.core.streams.WriteStream;
 import org.marc4j.MarcPermissiveStreamReader;
 import org.marc4j.MarcReader;
-import org.marc4j.MarcStreamWriter;
 import org.marc4j.marc.Record;
-
-import java.io.ByteArrayOutputStream;
-import java.nio.charset.StandardCharsets;
-import java.util.concurrent.Executor;
 
 public class MarcStreamParserImpl implements MarcStreamParser {
 
+  private final Vertx vertx;
   private final ReadStream<Buffer> stream;
-  private final Executor asyncExecutor;
 
-  private volatile boolean demand = false;
-  private volatile boolean streamEnded;
+  private boolean asyncProcessingActive = false;
+  private boolean demand = false;
+  private boolean streamEnded;
 
-  private Handler<Buffer> eventHandler;
+  private Handler<Record> eventHandler;
   private Handler<Void> endHandler;
   private Handler<Throwable> exceptionHandler;
 
   private final VertxBufferInputStream bufferInputStream;
   private final MarcReader marcReader;
 
-  private volatile boolean terminated;
-  private volatile boolean terminationOnErrorRequested;
-  private volatile boolean terminationOnErrorCompleted;
+  private boolean terminated;
+  private boolean terminationOnErrorRequested;
+  private boolean terminationOnErrorCompleted;
 
-  private volatile Throwable terminationOnErrorCause;
+  private Throwable terminationOnErrorCause;
 
   private static final Logger log = LoggerFactory.getLogger(MarcStreamParserImpl.class);
 
-  public static MarcStreamParser newMarcParser(ReadStream<Buffer> stream, Executor asyncExecutor) {
-    return new MarcStreamParserImpl(stream, asyncExecutor);
+  public static MarcStreamParser newMarcParser(Vertx vertx, ReadStream<Buffer> stream) {
+    return new MarcStreamParserImpl(vertx, stream);
   }
 
-  private MarcStreamParserImpl(ReadStream<Buffer> stream, Executor asyncExecutor) {
+  private MarcStreamParserImpl(Vertx vertx, ReadStream<Buffer> stream) {
     super();
+    this.vertx = vertx;
     this.stream = stream;
-    this.asyncExecutor = asyncExecutor;
     bufferInputStream = new VertxBufferInputStream();
     marcReader = new MarcPermissiveStreamReader(bufferInputStream, true, true, "BESTGUESS");
   }
 
   @Override
-  public void processAsynchronously(WriteStream<Buffer> destination, Handler<AsyncResult<Void>> handler) {
+  public void processAsynchronously(WriteStream<Record> destination, Handler<AsyncResult<Void>> completionHandler) {
     pause();
-    this.pipeTo(destination, handler);
+    this.pipeTo(destination, completionHandler);
   }
 
   @Override
@@ -70,7 +67,6 @@ public class MarcStreamParserImpl implements MarcStreamParser {
         s.pause();
         log.debug("Source stream is paused in handle(Buffer buffer).");
       }
-      doProcessAsynchronously();
     }
   }
 
@@ -81,7 +77,7 @@ public class MarcStreamParserImpl implements MarcStreamParser {
   }
 
   @Override
-  public MarcStreamParser handler(Handler<Buffer> handler) {
+  public MarcStreamParser handler(Handler<Record> handler) {
     eventHandler = handler;
     if (stream != null) {
       if (handler != null) {
@@ -108,9 +104,7 @@ public class MarcStreamParserImpl implements MarcStreamParser {
   public MarcStreamParser pause() {
     log.debug("MarcStreamParser.pause()");
     if (demand) {
-
-      asyncExecutor.execute(() -> demand = false);
-
+      demand = false;
       if (!streamEnded) {
         ReadStream<Buffer> s = stream;
         if (s != null) {
@@ -123,7 +117,7 @@ public class MarcStreamParserImpl implements MarcStreamParser {
   }
 
   @Override
-  public synchronized MarcStreamParser fetch(long amount) {
+  public MarcStreamParser fetch(long amount) {
     if (terminated || terminationOnErrorRequested) {
       log.warn("MarcStreamParser.fetch(long amount) - MarcStreamParser is already terminated...");
       return this;
@@ -151,6 +145,11 @@ public class MarcStreamParserImpl implements MarcStreamParser {
       return this;
     }
 
+    if (eventHandler == null) {
+      log.warn("MarcStreamParser.resume() - eventHandler is null, resume skipped...");
+      return this;
+    }
+
     boolean pausedNow = !demand;
     if (log.isDebugEnabled() && pausedNow) {
       log.debug("MarcStreamParser.resume()");
@@ -165,7 +164,7 @@ public class MarcStreamParserImpl implements MarcStreamParser {
   }
 
   @Override
-  public synchronized void terminateOnError(Throwable terminatedCause) {
+  public void terminateOnError(Throwable terminatedCause) {
     log.warn("MarcStreamParser.terminateOnError(Throwable terminatedCause): " + terminatedCause);
     terminatedCause.printStackTrace();
     if (!terminationOnErrorRequested) {
@@ -173,7 +172,7 @@ public class MarcStreamParserImpl implements MarcStreamParser {
       terminationOnErrorCompleted = false;
       terminationOnErrorRequested = true;
 
-      //We don't need to process stream so Just push resumeHandler to doTerminate()!
+      //We don't need to process stream so Just push to doTerminate()!
       doProcessAsynchronously();
     }
   }
@@ -188,7 +187,7 @@ public class MarcStreamParserImpl implements MarcStreamParser {
     return terminationOnErrorCause;
   }
 
-  public synchronized boolean isTerminated() {
+  public boolean isTerminated() {
     return terminated;
   }
 
@@ -197,7 +196,7 @@ public class MarcStreamParserImpl implements MarcStreamParser {
     log.debug("MarcStreamParser.endStream() - completed.");
   }
 
-  private synchronized void end() {
+  private void end() {
     if (!terminated) {
       terminated = true;
       log.debug("MarcStreamParser.end() - starting...");
@@ -225,59 +224,79 @@ public class MarcStreamParserImpl implements MarcStreamParser {
     }
   }
 
-  private synchronized void doTerminate() {
+  private void doTerminate() {
     if (!terminationOnErrorCompleted) {
       log.debug("MarcStreamParser.doTerminate() - starting...");
       abort();
+      end();
 
       Handler<Throwable> exHandler = this.exceptionHandler;
       if (exHandler != null) {
         exHandler.handle(terminationOnErrorCause);
       }
 
-      end();
       terminationOnErrorCompleted = true;
       log.debug("MarcStreamParser.doTerminate() - completed.");
     }
   }
 
-  private Buffer wrapIntoBuffer(Record rawRecord) {
-    ByteArrayOutputStream bos = new ByteArrayOutputStream();
-    MarcStreamWriter streamWriter = new MarcStreamWriter(bos, StandardCharsets.UTF_8.name());
-    streamWriter.write(rawRecord);
-    streamWriter.close();
-    return Buffer.buffer(bos.toByteArray());
-  }
 
   private void doProcessAsynchronously() {
-    asyncExecutor.execute(() -> {
-      boolean initialDemand = this.demand;
-      if (terminated) {
-        log.warn("MarcStreamParser is already terminated...");
-      } else if (terminationOnErrorRequested) {
-        doTerminate();
-      } else if (marcReader.hasNext()) {
-        Handler<Buffer> localEventHandler = eventHandler;
-        if (localEventHandler != null) {
-          localEventHandler.handle(wrapIntoBuffer(marcReader.next()));
-
-          int remainingBuffersCapacity = bufferInputStream.remainingBuffersCapacity();
-          //TODO: get rid of magic numbers
-          if (remainingBuffersCapacity > 40 && (demand || initialDemand)) {
-            ReadStream<Buffer> s = stream;
-            if (s != null) {
-              s.resume();
-            }
-          }
-
-          if (demand || initialDemand) {
-            doProcessAsynchronously();
-          }
-        }
-      } else {
-        end();
+    if (terminated) {
+      log.warn("MarcStreamParser is already terminated...");
+    } else if (terminationOnErrorRequested) {
+      doTerminate();
+    } else {
+      if (asyncProcessingActive) {
+        return;
       }
-    });
+      asyncProcessingActive = true;
+
+      vertx.<Record>executeBlocking(promise -> {
+        try {
+          if (marcReader.hasNext()) {
+            promise.complete(marcReader.next());
+          } else {
+            promise.complete(null);
+          }
+        } catch (Throwable t) {
+          promise.fail(t);
+        }
+      }, true, ar -> {
+        asyncProcessingActive = false;
+        if (ar.succeeded()) {
+          Record result = ar.result();
+          if (result != null) {
+            Handler<Record> localEventHandler = eventHandler;
+            if (localEventHandler != null) {
+              localEventHandler.handle(result);
+
+              if (!streamEnded && demand) {
+                int remainingBuffersCapacity = bufferInputStream.remainingBuffersCapacity();
+                //TODO: get rid of magic numbers
+                if (remainingBuffersCapacity > 40) {
+                  ReadStream<Buffer> s = stream;
+                  if (s != null) {
+                    s.resume();
+                    log.debug("Source stream is resumed in asyncHandler.");
+                  }
+                }
+              }
+              if (demand) {
+                doProcessAsynchronously();
+              }
+            } else {
+              log.error("Event handler is null!");
+              end();
+            }
+          } else {
+            end();
+          }
+        } else {
+          terminateOnError(ar.cause());
+        }
+      });
+    }
   }
 
 }

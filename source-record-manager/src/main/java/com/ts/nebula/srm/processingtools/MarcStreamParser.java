@@ -1,21 +1,15 @@
 package com.ts.nebula.srm.processingtools;
 
-import com.ts.nebula.srm.processingtools.impl.MarcStreamParserImpl;
 import io.vertx.core.AsyncResult;
 import io.vertx.core.Handler;
 import io.vertx.core.buffer.Buffer;
 import io.vertx.core.streams.ReadStream;
 import io.vertx.core.streams.WriteStream;
+import org.marc4j.marc.Record;
 
-import java.util.concurrent.Executor;
+public interface MarcStreamParser extends Handler<Buffer>, ReadStream<Record> {
 
-public interface MarcStreamParser extends Handler<Buffer>, ReadStream<Buffer> {
-
-  static MarcStreamParser newMarcParser(ReadStream<Buffer> stream, Executor asyncExecutor) {
-    return MarcStreamParserImpl.newMarcParser(stream, asyncExecutor);
-  }
-
-  void processAsynchronously(WriteStream<Buffer> destination, Handler<AsyncResult<Void>> handler);
+  void processAsynchronously(WriteStream<Record> destination, Handler<AsyncResult<Void>> completionHandler);
 
   /**
    * This method is called to provide the parser with data.
@@ -29,7 +23,7 @@ public interface MarcStreamParser extends Handler<Buffer>, ReadStream<Buffer> {
   MarcStreamParser exceptionHandler(Handler<Throwable> handler);
 
   @Override
-  MarcStreamParser handler(Handler<Buffer> handler);
+  MarcStreamParser handler(Handler<Record> handler);
 
   @Override
   MarcStreamParser pause();

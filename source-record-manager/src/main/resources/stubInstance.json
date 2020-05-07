@@ -1,0 +1,272 @@
+{
+  "id":"7ab22f0a-c9cd-449a-9137-c76e5055ca37",
+  "hrid":"inst000000000016",
+  "notes":[
+    {
+      "note":"Enthält 16 Beiträge",
+      "staffOnly":false,
+      "instanceNoteTypeId":"6a2533a7-4de2-4e64-8466-074c2fa9308c"
+    },
+    {
+      "note":"Includes bibliographical references and index",
+      "staffOnly":false,
+      "instanceNoteTypeId":"6a2533a7-4de2-4e64-8466-074c2fa9308c"
+    },
+    {
+      "note":"Introduction / Mike Odugbo Odey and Toyin Falola -- Part I: Dimensions and assessments of poverty reduction policies and programs in Sub-Saharan Africa -- Poverty in post-colonial Africa: the legacy of contested perspectives / Sati U. Fwatshak -- Scaling up power infrastructure investment in Sub-Saharan Africa for poverty alleviation / Aori R. Nyambati -- The impact of anti-corruption conventions in Sub-Saharan Africa / Daniel Barkley and Claire Maduka -- The besieged continent: interrogating contemporary issues of corruption and poverty in Africa / Idris S. Jimada -- PEPFAR and preventing HIV transmission: evidence from Sub-Saharan Africa / Daniel Barkley and Opeyemi Adeniyi -- Reflections on the current challenges of poverty reduction in Africa / Loveday N. Gbara -- A critical analysis of poverty reduction strategies in post-colonial Africa / Okokhere O. Felix -- Part II: Problems of good governance and institutional failures in West-Africa -- Weaknesses and failures of poverty reduction policies and programs in Nigeria since 1960 / Mike O. Odey -- In the web of neo-liberalism and deepening contradictions? Assessing poverty reform strategies in West Africa since the mid-1980s / Okpeh O. Okpeh, Jr. -- An assessment of abuse of the elderly as an aspect of poverty in Akwa-Ibom State, Nigeria / Ekot O. Mildred -- Reflections on the interface between poverty and food insecurity in Nigeria / Funso A. Adesola -- An appraisal of poverty reduction program in Bayelsa State of Nigeria: \\\"In-Care of the People\\\" (COPE) / Ezi Beedie -- A comparative analysis of incidence of poverty in three urban centers in Ghana from 1945-1990 / Wilhelmina J. Donkoh -- Part III: Dimensions of poverty in east and southern Africa -- Landlessness, national politics, and the future of land reforms in Kenya / Shanguhyia S. Martin -- Extra-version and development in northwestern Ethiopia: the case of the Humera Agricultural Project (1967-1975) / Luca Pudu -- Affirmative action as a theological-pastoral challenge in the south-African democratic context / Elijah M. Baloyi.",
+      "staffOnly":false,
+      "instanceNoteTypeId":"6a2533a7-4de2-4e64-8466-074c2fa9308c"
+    }
+  ],
+  "title":"Poverty reduction strategies in Africa edited by Toyin Falola and Mike Odugbo Odey",
+  "series":[
+    "Global Africa 3"
+  ],
+  "source":"FOLIO",
+  "editions":[
+
+  ],
+  "metadata":{
+    "createdDate":"2020-04-18T11:00:34.212",
+    "updatedDate":"2020-04-18T11:00:34.212+0000"
+  },
+  "subjects":[
+    "Poverty--Government policy--Africa, Sub-Saharan",
+    "Armut",
+    "Bekämpfung",
+    "Armutsbekämpfung",
+    "Subsahara-Afrika",
+    "Westafrika",
+    "Africa, Sub-Saharan--Economic conditions--21st century",
+    "Subsaharisches Afrika",
+    "Africa, Sub-Saharan Economic conditions 21st century",
+    "Poverty Government policy Africa, Sub-Saharan"
+  ],
+  "languages":[
+    "eng"
+  ],
+  "identifiers":[
+    {
+      "value":"2017004333",
+      "identifierTypeId":"c858e4f2-2b6b-4385-842b-60732ee14abb"
+    },
+    {
+      "value":"9781138240667",
+      "identifierTypeId":"8261054f-be78-422d-bd51-4ed9f33c3422"
+    },
+    {
+      "value":"9781315282978",
+      "identifierTypeId":"8261054f-be78-422d-bd51-4ed9f33c3422"
+    },
+    {
+      "value":"(DE-599)GBV880159367",
+      "identifierTypeId":"7e591197-f335-4afb-bc6d-a6d76ca3bace"
+    }
+  ],
+  "publication":[
+    {
+      "place":"London",
+      "publisher":"Routledge",
+      "dateOfPublication":"2018"
+    }
+  ],
+  "contributors":[
+    {
+      "name":"Falola, Toyin",
+      "contributorNameTypeId":"2b94c631-fca9-4892-a730-03ee529ffe2a"
+    },
+    {
+      "name":"Odey, Mike Odugbo",
+      "contributorNameTypeId":"2b94c631-fca9-4892-a730-03ee529ffe2a"
+    }
+  ],
+  "instanceTypeId":"6312d172-f0cf-40f6-b27d-9fa8feaf332f",
+  "classifications":[
+    {
+      "classificationNumber":"HV438.A357",
+      "classificationTypeId":"ce176ace-a53e-4b4d-aa89-725ed7b2edac"
+    },
+    {
+      "classificationNumber":"362.50967",
+      "classificationTypeId":"42471af9-7d25-4f3a-bf78-60d29dcf463b"
+    }
+  ],
+  "electronicAccess":[
+    {
+      "uri":"http://www.gbv.de/dms/zbw/880159367.pdf",
+      "linkText":"Electronic resource (PDF)",
+      "publicNote":"Address for accessing the table of content. PDF file"
+    }
+  ],
+  "holdingsRecords2":[
+
+  ],
+  "publicationRange":[
+
+  ],
+  "alternativeTitles":[
+
+  ],
+  "discoverySuppress":false,
+  "instanceFormatIds":[
+
+  ],
+  "statisticalCodeIds":[
+
+  ],
+  "physicalDescriptions":[
+    "xiv, 300 Seiten"
+  ],
+  "publicationFrequency":[
+
+  ],
+  "natureOfContentTermIds":[
+
+  ],
+  "holdings":[
+    {
+      "id":"0c45bb50-7c9b-48b0-86eb-178a494e25fe",
+      "hrid":"hold000000000002",
+      "notes":[
+        {
+          "note":" Subscription cancelled per Evans Current Periodicals Selector Review. acq",
+          "staffOnly":true,
+          "holdingsNoteTypeId":"b160f13a-ddba-4053-b9c4-60ec5ea45d56"
+        },
+        {
+          "note":"Asked Ebsco to check with publisher and ask what years were paid since we are missing (2001:Oct.-Dec.), (All of 2002), & (2003:Jan.-Feb.). 20030305. evaldez",
+          "staffOnly":false,
+          "holdingsNoteTypeId":"b160f13a-ddba-4053-b9c4-60ec5ea45d56"
+        },
+        {
+          "note":"Backorder:v.87(2001:Oct.-Dec)-v.88(2002). eluza",
+          "staffOnly":false,
+          "holdingsNoteTypeId":"b160f13a-ddba-4053-b9c4-60ec5ea45d56"
+        },
+        {
+          "note":"WITH 2010 TREAT ISSUE S AS DISCARDS. dgill",
+          "staffOnly":false,
+          "holdingsNoteTypeId":"b160f13a-ddba-4053-b9c4-60ec5ea45d56"
+        }
+      ],
+      "metadata":{
+        "createdDate":"2020-04-18T11:00:34.755",
+        "updatedDate":"2020-04-18T11:00:34.755+0000"
+      },
+      "formerIds":[
+        "ABW4508",
+        "442882"
+      ],
+      "callNumber":"K1 .M44",
+      "copyNumber":"1",
+      "instanceId":"69640328-788e-43fc-9c3c-af39e243f3b7",
+      "holdingsItems":[
+
+      ],
+      "receiptStatus":"Not currently received",
+      "retentionPolicy":"Permanently retained.",
+      "electronicAccess":[
+        {
+          "uri":"http://www.ebscohost.com",
+          "relationshipId":"3b430592-2e09-4b48-9a0c-0636d66b9fb3",
+          "materialsSpecification":"1984-"
+        },
+        {
+          "uri":"http://www.jstor.com",
+          "publicNote":"Most recent 4 years not available.",
+          "relationshipId":"3b430592-2e09-4b48-9a0c-0636d66b9fb3",
+          "materialsSpecification":"1984-"
+        }
+      ],
+      "acquisitionMethod":"Purchase",
+      "holdingsStatements":[
+        {
+          "statement":"v.70-84 (1984-1998)"
+        },
+        {
+          "statement":"v.85:no. 1-11 (1999:Jan.-Nov.)"
+        },
+        {
+          "statement":"v.87:no.1-9 (2001:Jan.-Sept.)"
+        },
+        {
+          "statement":"v.89:no.2-12 (2003:Feb.-Dec.)"
+        },
+        {
+          "statement":"v.90-95 (2004-2009)"
+        }
+      ],
+      "statisticalCodeIds":[
+        "775b6ad4-9c35-4d29-bf78-8775a9b42226"
+      ],
+      "permanentLocationId":"fcd64ce1-6995-48f0-840e-89ffa2288371",
+      "holdingsStatementsForIndexes":[
+
+      ],
+      "holdingsStatementsForSupplements":[
+        {
+          "statement":"no.1-23 "
+        }
+      ],
+      "items":[
+        {
+          "id":"7212ba6a-8dcf-45a1-be9a-ffaa847c4423",
+          "hrid":"item000000000014",
+          "notes":[
+
+          ],
+          "status":{
+            "date":"2020-04-18T18:45:21.511Z",
+            "name":"In transit"
+          },
+          "barcode":"10101",
+          "metadata":{
+            "createdDate":"2020-04-18T11:00:35.29",
+            "updatedDate":"2020-04-18T18:45:19.914+0000",
+            "updatedByUserId":"acfca9bd-48da-5f92-9772-5dfb60d2e893"
+          },
+          "formerIds":[
+
+          ],
+          "chronology":"",
+          "copyNumber":"Copy 2",
+          "enumeration":"",
+          "lastCheckIn":{
+            "dateTime":"2020-04-18T18:45:19.791+0000",
+            "staffMemberId":"acfca9bd-48da-5f92-9772-5dfb60d2e893",
+            "servicePointId":"7c5abc9f-f3d7-4856-b8d7-6712462ca007"
+          },
+          "yearCaption":[
+
+          ],
+          "materialTypeId":"1a54b431-2e4f-452d-9cae-9cee66c9a892",
+          "circulationNotes":[
+
+          ],
+          "electronicAccess":[
+            {
+              "uri":"http://www.loc.gov/catdir/toc/ecip0718/2007020429.html",
+              "linkText":"Links available",
+              "publicNote":"Table of contents only",
+              "relationshipId":"3b430592-2e09-4b48-9a0c-0636d66b9fb3",
+              "materialsSpecification":"Table of contents"
+            }
+          ],
+          "holdingsRecordId":"e3ff6133-b9a2-4d4c-a1c9-dc1867d4df19",
+          "statisticalCodeIds":[
+            "b5968c9e-cddc-4576-99e3-8e60aed8b0dd"
+          ],
+          "effectiveLocationId":"fcd64ce1-6995-48f0-840e-89ffa2288371",
+          "itemLevelCallNumber":"TK5105.88815 . A58 2004 FT MEADE",
+          "permanentLoanTypeId":"2b94c631-fca9-4892-a730-03ee529ffe27",
+          "permanentLocationId":"fcd64ce1-6995-48f0-840e-89ffa2288371",
+          "effectiveCallNumberComponents":{
+            "typeId":"512173a7-bd09-490e-b773-17d83f2b63fe",
+            "callNumber":"TK5105.88815 . A58 2004 FT MEADE"
+          },
+          "inTransitDestinationServicePointId":"3a40852d-49fd-4df2-a1f9-6e2641a6e91f"
+        }
+      ]
+    }
+  ]
+}
