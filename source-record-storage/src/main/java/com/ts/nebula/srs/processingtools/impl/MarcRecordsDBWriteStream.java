@@ -32,7 +32,6 @@ public class MarcRecordsDBWriteStream implements WriteStream<JsonObject> {
   }
 
   private void init() {
-    //TODO
     marcRecordsBatchDBWriteStream
       .exceptionHandler(event -> {
         Handler<Throwable> handler = this.exceptionHandler;
@@ -75,7 +74,6 @@ public class MarcRecordsDBWriteStream implements WriteStream<JsonObject> {
       List<JsonObject> localNextMarcBatch = null;
       List<Handler<AsyncResult<Void>>> localNextMarcBatchHandlers = null;
 
-//      synchronized (this) {
       nextMarcBatch.add(data);
       if (handler != null) {
         nextMarcBatchHandlers.add(handler);
@@ -86,7 +84,7 @@ public class MarcRecordsDBWriteStream implements WriteStream<JsonObject> {
         localNextMarcBatchHandlers = nextMarcBatchHandlers;
         nextMarcBatchHandlers = new ArrayList<>(writeBatchSize);
       }
-//      }
+
       if (localNextMarcBatch != null) {
         final List<Handler<AsyncResult<Void>>> finalNextMarcBatchHandlers = localNextMarcBatchHandlers;
         Handler<AsyncResult<Void>> batchHandler =

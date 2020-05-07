@@ -40,8 +40,8 @@ public class DummyMarcRecordsBatchDBWriteStreamImpl implements WriteStream<DBWri
       //This is an async database interaction when a batch of MARC records is being saved into the database
       try {
         activeWritesCounter.incrementAndGet();
-        Thread.sleep(new Random().nextInt(500) + 500);
-        System.out.println("> DBBatch has been saved into the database! activeWritesCounter: " + activeWritesCounter.get());
+        Thread.sleep(new Random().nextInt(500) + 1500);
+        System.out.println("> DBBatch has been saved into the database!" + data + "\n>  activeWritesCounter: " + activeWritesCounter.get());
       } catch (InterruptedException e) {
         e.printStackTrace();
         Thread.currentThread().interrupt();
